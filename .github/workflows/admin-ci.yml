@@ -2,74 +2,33 @@ name: Admin CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - Admin/**
       - .github/workflows/admin-ci.yml
 
 jobs:
-  build-and-docker:
+  admin:
     runs-on: self-hosted
-    strategy:
-      matrix:
-        service:
-          - name: Admin
-            docker: admin
+
+    defaults:
+      run:
+        working-directory: Admin
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build service and Docker image
-        run: |
-          mvn -B clean package -DskipTests -f MaslyakBank_${{ matrix.service.name }}/pom.xml
-          docker build -t maslyakbank-${{ matrix.service.docker }} \
-            -f MaslyakBank_${{ matrix.service.name }}/Dockerfile \
-            MaslyakBank_${{ matrix.service.name }}
+      - name: Build
+        run: mvn -B clean package -DskipTests
 
-      - name: Upload JAR artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.service.docker }}-jar
-          path: MaslyakBank_${{ matrix.service.name }}/target/*.jar
-
-
-  test:
-    runs-on: self-hosted
-    needs: build-and-docker
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run tests
+      - name: Test
         run: mvn -B test
 
-  deploy:
-    runs-on: self-hosted
-    needs: test
-    strategy:
-      matrix:
-        service:
-          - name: Admin
-            docker: admin
+      - name: Build Docker image
+        run: docker build -t admin-service .
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download JAR artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.service.docker }}-jar
-          path: MaslyakBank_${{ matrix.service.name }}/target/
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Start service
-        run: docker compose -f MaslyakBank_${{matrix.service.name}}/compose-${{matrix.service.docker}}.yaml up -d
+      - name: Deploy
+        run: docker compose -f compose-admin.yaml up -d
         env:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
