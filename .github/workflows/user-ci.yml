@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Deploy
-        run: docker compose -f user-customary.yaml up -d
+        run: docker compose -f compose-user.yaml up -d
         env:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
